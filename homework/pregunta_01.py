@@ -1,9 +1,10 @@
 """
 Escriba el codigo que ejecute la accion solicitada en la pregunta.
 """
+import pandas as pd
+import os
 
-
-def pregunta_02():
+def pregunta_01():
     """
     Realice la limpieza del archivo "files/input/solicitudes_de_credito.csv".
     El archivo tiene problemas como registros duplicados y datos faltantes.
@@ -11,103 +12,37 @@ def pregunta_02():
     realizar la limpieza de los datos.
 
     El archivo limpio debe escribirse en "files/output/solicitudes_de_credito.csv"
-
     """
+    file_path = 'files/input/solicitudes_de_credito.csv'
+    data = pd.read_csv(file_path, sep=';')
 
-import pandas as pd
-from datetime import datetime
+    data.drop(['Unnamed: 0'], axis=1, inplace=True)
+    data.dropna(inplace=True)
+    data.drop_duplicates(inplace=True)
 
-def validar_formato_fecha(fecha):
-    """
-    Valida y transforma las fechas al formato DD/MM/YYYY.
-    Si el formato no es válido, retorna el valor original.
-    """
-    try:
-        # Intentar convertir al formato DD/MM/YYYY
-        fecha_validada = datetime.strptime(fecha, "%d/%m/%Y")
-        return fecha_validada.strftime("%d/%m/%Y")
-    except ValueError:
-        try:
-            # Intentar convertir al formato YYYY/MM/DD
-            fecha_validada = datetime.strptime(fecha, "%Y/%m/%d")
-            return fecha_validada.strftime("%d/%m/%Y")
-        except ValueError:
-            # Si no coincide con ninguno de los formatos, retornar el valor original
-            return fecha
-        
-def pregunta_01():
+    data[['día', 'mes', 'año']] = data['fecha_de_beneficio'].str.split('/', expand=True)
+    data.loc[data['año'].str.len() < 4, ['día', 'año']] = data.loc[data['año'].str.len() < 4, ['año', 'día']].values
+    data['fecha_de_beneficio'] = data['año'] + '-' + data['mes'] + '-' + data['día']
+    data.drop(['día', 'mes', 'año'], axis=1, inplace=True)
 
-    input_file = "files/input/solicitudes_de_credito.csv"
-    output_file = "files/output/solicitudes_de_credito.csv"
-    """
-    Función para limpiar un archivo CSV de solicitudes de crédito.
-    
-    - Convierte los datos a minúsculas.
-    - Elimina duplicados.
-    - Elimina filas con valores vacíos.
-    - Guarda el archivo limpio en la ruta especificada.
-    
-    Parámetros:
-    - input_file: Ruta del archivo de entrada.
-    - output_file: Ruta del archivo de salida.
-    """
-    # Leer el archivo CSV
-    dfi = pd.read_csv(input_file, sep=";")
-    df = pd.read_csv(input_file, sep=";")
+    object_columns = ['sexo', 'tipo_de_emprendimiento', 'idea_negocio', 'línea_credito']
+    data[object_columns] = data[object_columns].apply(lambda x: x.str.lower().replace(['-', '_'], ' ', regex=True).str.strip())
+    data['barrio'] = data['barrio'].str.lower().replace(['-', '_'], ' ', regex=True)
 
-    #Quitar primera columna de indice
-    df = df.drop(df.columns[0], axis=1)
+    data['monto_del_credito'] = data['monto_del_credito'].str.replace("[$, ]", "", regex=True).str.strip()
+    data['monto_del_credito'] = pd.to_numeric(data['monto_del_credito'], errors='coerce')
+    data['monto_del_credito'] = data['monto_del_credito'].fillna(0).astype(int)
+    data['monto_del_credito'] = data['monto_del_credito'].astype(str).str.replace('.00', '')
 
-    # Convertir todas las columnas y valores a minúsculas
-    df.columns = df.columns.str.lower()
-    df = df.applymap(lambda x: x.lower() if isinstance(x, str) else x)
+    data.drop_duplicates(inplace=True)
 
-    #Reemplazar _ por espacio
-    df = df.apply(lambda col: col.str.replace('_', ' ') if col.dtype == 'object' else col)
+    output_dir = 'files/output'
+    os.makedirs(output_dir, exist_ok=True)
 
-    #Reemplazar - por espacio
-    df = df.apply(lambda col: col.str.replace('-', ' ') if col.dtype == 'object' else col)
+    output_path = f'{output_dir}/solicitudes_de_credito.csv'
+    data.to_csv(output_path, sep=';', index=False)
 
-    #Quitar espacios al inicio y al final
-    df = df.apply(lambda x: x.str.strip() if x.dtype == 'object' else x)
+    return data.head()
 
-    #Convierte los montos a numero entero
-    df['monto_del_credito'] = df['monto_del_credito'].replace({'\$': '', ',': '', '\$ ': ''}, regex=True)
-    df['monto_del_credito'] = pd.to_numeric(df['monto_del_credito'], errors='coerce').fillna(0).astype(int)
-
-    #df['línea_credito'] = df['línea_credito'].replace('soli diaria', 'solidaria')
-    #df['barrio'] = df['barrio'].replace('bel¿n', 'belen')
-    #df['barrio'] = df['barrio'].replace('antonio nari¿o', 'antonio nariño')
-
-    # Validar y transformar fechas al formato DD/MM/YYYY
-    df['fecha_de_beneficio'] = df['fecha_de_beneficio'].apply(validar_formato_fecha)
-
-
-
-    # Eliminar duplicados
-    df = df.drop_duplicates()
-
-    # Eliminar filas con valores vacíos en cualquier columna
-    df = df.dropna()
-
-    # Guardar el archivo limpio
-    df.to_csv(output_file, sep=";", index=False)
-
-    dfbarrio = df['barrio'].value_counts().reset_index()
-    #dfbarrio.to_csv('files/output/barrios.csv', sep=";", index=False)
-    #df.to_csv('files/output/salida_solicitudes_de_credito.csv', sep=";", index=False)
-    
-
-    return df.sexo.value_counts()
-    
-#== [6617, 3589]
-#df.comuna_ciudadano.value_counts().to_list()
-#sorted(df['fecha_de_beneficio'].dropna().unique())
-
-
-if __name__ == "__main__":
-    # Rutas de entrada y salida
-
-
-    # Llamar a la función
-    print(pregunta_01())
+if __name__ == '__main__':
+    pregunta_01()
